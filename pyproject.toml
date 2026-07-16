@@ -1,0 +1,26 @@
+[build-system]
+requires = ["maturin>=1.13,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "soccernetpy"
+description = "Python bindings for SOCcerNET occupation coding and CLIPS industry coding"
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Daniel Russ", email = "druss@mail.nih.gov" },
+]
+requires-python = ">=3.8"
+keywords = ["occupation", "industry", "SOC", "NAICS", "classification"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dynamic = ["version"]
+
+[project.urls]
+Repository = "https://github.com/danielruss/soccer-rs"

@@ -1,0 +1,13 @@
+[package]
+name = "soccernetpy"
+version = "0.1.0"
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "soccernetpy"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = "0.28.2"
+soccer-rs = "0.1.2"
