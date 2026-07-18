@@ -10,4 +10,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = "0.28.2"
-soccer-rs = "0.1.2"
+soccer-rs = "0.1.4"
+ort = { version = "2.0.0-rc.12", features = ["download-binaries"] }
