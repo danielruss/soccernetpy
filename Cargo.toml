@@ -10,6 +10,6 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = "0.28.2"
-soccer-rs = "0.1.4"
+soccer-rs = "0.1.5"
 ort = { version = "2.0.0-rc.12", features = ["download-binaries"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
