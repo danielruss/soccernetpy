@@ -38,6 +38,15 @@ another platform.
 The first non-empty classification may download the embedding and classifier
 model files. Later calls use the cached copies.
 
+## Platform support
+
+Prebuilt wheels are not currently available for Intel Macs
+(`x86_64-apple-darwin`). Microsoft has dropped support for ONNX Runtime on
+Intel macOS, and SOCcerNET requires ONNX Runtime for model inference. As a
+result, we cannot support Intel Macs until a suitable workaround is available.
+
+Apple Silicon Macs (`aarch64-apple-darwin`) remain supported.
+
 ## SOCcerNET
 
 ```python
