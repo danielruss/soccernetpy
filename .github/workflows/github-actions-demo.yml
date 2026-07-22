@@ -9,6 +9,9 @@ on:
 jobs:
   run-on-linux:
     runs-on: ubuntu-22.04
+    strategy: 
+      matrix: 
+        target: [x86_64, aarch64]
     steps:
       - run: uname -a
       
