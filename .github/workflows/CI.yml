@@ -3,8 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - main
-      - master
+      - '**'
     tags:
       - '*'
   pull_request:
@@ -21,12 +20,33 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_64, aarch64]
+        include:
+          - target: x86_64
+            ort_runtime: linux-x64
+          - target: aarch64
+            ort_runtime: linux-arm64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+      - name: Bundle Microsoft ONNX Runtime
+        env:
+          ORT_VERSION: '1.24.2'
+          ORT_RUNTIME: ${{ matrix.ort_runtime }}
+          ORT_NUPKG_SHA256: 782564d3d68e87269ea1812cc94710ad06fe014faf093f01a6f89d0bd58719d3
+        run: |
+          package="$RUNNER_TEMP/microsoft.ml.onnxruntime.${ORT_VERSION}.nupkg"
+          curl --fail --location --retry 3 \
+            "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/${ORT_VERSION}/microsoft.ml.onnxruntime.${ORT_VERSION}.nupkg" \
+            --output "$package"
+          echo "${ORT_NUPKG_SHA256}  ${package}" | sha256sum --check
+          unzip -j "$package" \
+            "runtimes/${ORT_RUNTIME}/native/libonnxruntime.so" \
+            "runtimes/${ORT_RUNTIME}/native/libonnxruntime_providers_shared.so" \
+            LICENSE \
+            ThirdPartyNotices.txt \
+            -d python/soccernetpy
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -34,6 +54,21 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: 2_28
+      - name: Verify bundled ONNX Runtime
+        run: |
+          wheel="$(find dist -name '*.whl' -print -quit)"
+          unzip -l "$wheel" | grep 'soccernetpy/libonnxruntime.so'
+          unzip -l "$wheel" | grep 'soccernetpy/libonnxruntime_providers_shared.so'
+      - name: Test import on glibc 2.28
+        if: matrix.target == 'x86_64'
+        run: |
+          docker run --rm \
+            --volume "$PWD/dist:/dist:ro" \
+            quay.io/pypa/manylinux_2_28_x86_64:latest \
+            bash -c "
+              /opt/python/cp39-cp39/bin/python -m pip install /dist/*cp39*.whl
+              /opt/python/cp39-cp39/bin/python -c 'import ctypes, os; from soccernetpy import soccernet; ctypes.CDLL(os.environ[\"ORT_DYLIB_PATH\"]); print(\"soccernetpy and Microsoft ONNX Runtime loaded successfully\")'
+            "
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -114,7 +149,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     environment: pypi
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'push' }}
     needs: [linux, windows, macos, sdist]
     permissions:
       id-token: write
@@ -133,13 +168,16 @@ jobs:
           subject-path: 'dist/*'
 
       - name: Install uv
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
         uses: astral-sh/setup-uv@v3
 
       - name: Publish to TestPyPI
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        run: uv publish --publish-url https://test.pypi.org/legacy/ 'dist/*'
+        if: ${{ startsWith(github.ref, 'refs/heads/') }}
+        run: >-
+          uv publish
+          --publish-url https://test.pypi.org/legacy/
+          --check-url https://test.pypi.org/simple/
+          'dist/*'
 
       - name: Publish to PyPI
-        if: ${{ startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') }}
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
         run: uv publish 'dist/*'

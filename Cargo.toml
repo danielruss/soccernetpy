@@ -1,6 +1,6 @@
 [package]
 name = "soccernetpy"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,3 +11,12 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = "0.28.2"
 soccer-rs = "0.1.8"
+
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
+# Unifies with soccer-rs's ort dependency so Linux wheels load the Microsoft
+# runtime bundled by CI instead of linking pyke's glibc 2.32 static archive.
+ort = {
+    version = "=2.0.0-rc.12",
+    default-features = false,
+    features = ["load-dynamic", "tls-rustls"]
+}
