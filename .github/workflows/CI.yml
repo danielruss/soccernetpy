@@ -149,7 +149,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     environment: pypi
-    if: ${{ github.event_name == 'push' }}
+    if: ${{ github.event_name == 'push' && github.ref != 'refs/heads/main' }}
     needs: [linux, windows, macos, sdist]
     permissions:
       id-token: write
