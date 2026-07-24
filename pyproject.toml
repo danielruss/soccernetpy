@@ -24,3 +24,11 @@ dynamic = ["version"]
 
 [project.urls]
 Repository = "https://github.com/danielruss/soccernetpy"
+
+[tool.maturin]
+python-source = "python"
+module-name = "soccernetpy.soccernetpy"
+include = [
+    { path = "soccernetpy/libonnxruntime.so", format = "wheel" },
+    { path = "soccernetpy/libonnxruntime_providers_shared.so", format = "wheel" },
+]
