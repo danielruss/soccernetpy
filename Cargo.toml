@@ -9,7 +9,7 @@ name = "soccernetpy"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.28.2"
+pyo3 = "0.29.0"
 soccer-rs = "0.1.8"
 
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
