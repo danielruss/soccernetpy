@@ -31,4 +31,5 @@ module-name = "soccernetpy.soccernetpy"
 include = [
     { path = "soccernetpy/libonnxruntime.so", format = "wheel" },
     { path = "soccernetpy/libonnxruntime_providers_shared.so", format = "wheel" },
+    { path = "soccernetpy/libonnxruntime.1.24.2.dylib", format = "wheel" },
 ]

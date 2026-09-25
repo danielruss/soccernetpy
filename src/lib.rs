@@ -274,7 +274,7 @@ mod soccernetpy {
         Ok(())
     }
 
-    fn soccer_error(error: soccer_rs::MyError) -> PyErr {
+    fn soccer_error(error: soccer_rs::SoccerError) -> PyErr {
         PyRuntimeError::new_err(error.to_string())
     }
 }

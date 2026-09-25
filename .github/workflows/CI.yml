@@ -107,23 +107,72 @@ jobs:
 
   macos:
     runs-on: ${{ matrix.runner }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
     strategy:
       fail-fast: false
       matrix:
         include:
           - runner: macos-14
             target: aarch64
+            ort_runtime: system
+          - runner: macos-15-intel
+            target: x86_64
+            ort_runtime: custom-x86_64
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
+      - name: Bundle custom Intel macOS ONNX Runtime
+        if: matrix.ort_runtime == 'custom-x86_64'
+        env:
+          ORT_VERSION: '1.24.2'
+          ORT_SHA256: 57853607712285595b6a60598020ce8d0c2558a4028a24769bd0cb422d007759
+        run: |
+          archive="$RUNNER_TEMP/onnxruntime-macos-x86_64-${ORT_VERSION}.tar.gz"
+          curl --fail --location --retry 3 \
+            "https://github.com/danielruss/custom-ort-macos-x86-64/releases/download/v${ORT_VERSION}/onnxruntime-macos-x86_64-${ORT_VERSION}.tar.gz" \
+            --output "$archive"
+          echo "${ORT_SHA256}  ${archive}" | shasum --algorithm 256 --check
+          tar -xzf "$archive" \
+            -C python/soccernetpy \
+            "libonnxruntime.${ORT_VERSION}.dylib"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+      - name: Test Intel macOS wheel
+        if: matrix.ort_runtime == 'custom-x86_64'
+        run: |
+          test "$(uname -m)" = "x86_64"
+          wheel="$(find dist -name '*macosx*x86_64.whl' -print -quit)"
+          test -n "$wheel"
+          unzip -l "$wheel" | grep 'soccernetpy/libonnxruntime.1.24.2.dylib'
+          python -m pip install \
+            --no-index \
+            --find-links dist \
+            --only-binary=:all: \
+            soccernetpy
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from soccernetpy import soccernet
+
+          dylib = Path(os.environ["ORT_DYLIB_PATH"])
+          assert dylib.name == "libonnxruntime.1.24.2.dylib"
+          assert dylib.is_file()
+
+          result = soccernet(
+              job_titles=["soccer player"],
+              job_tasks=["play soccer"],
+              n=1,
+          )
+          assert result[0][0].code == "27-2021", result
+          print(result[0][0])
+          PY
       - name: Upload wheels
         uses: actions/upload-artifact@v6
         with:

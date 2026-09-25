@@ -40,12 +40,10 @@ model files. Later calls use the cached copies.
 
 ## Platform support
 
-Prebuilt wheels are not currently available for Intel Macs
-(`x86_64-apple-darwin`). Microsoft has dropped support for ONNX Runtime on
-Intel macOS, and SOCcerNET requires ONNX Runtime for model inference. As a
-result, we cannot support Intel Macs until a suitable workaround is available.
-
-Apple Silicon Macs (`aarch64-apple-darwin`) remain supported.
+Prebuilt wheels support both Apple Silicon (`aarch64-apple-darwin`) and Intel
+(`x86_64-apple-darwin`) Macs. Intel wheels bundle the custom ONNX Runtime build
+from [`custom-ort-macos-x86-64`](https://github.com/danielruss/custom-ort-macos-x86-64),
+because Microsoft no longer publishes Intel macOS binaries.
 
 ## SOCcerNET
 
