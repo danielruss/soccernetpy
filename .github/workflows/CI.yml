@@ -14,39 +14,29 @@ permissions:
 
 jobs:
   linux:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runner }}
     env:
       CFLAGS_aarch64_unknown_linux_gnu: "-D__ARM_ARCH=8"
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64
+          - runner: ubuntu-22.04
+            target: x86_64
             ort_runtime: linux-x64
-          - target: aarch64
+          - runner: ubuntu-24.04-arm
+            target: aarch64
             ort_runtime: linux-arm64
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
-      - name: Bundle Microsoft ONNX Runtime
-        env:
-          ORT_VERSION: '1.24.2'
-          ORT_RUNTIME: ${{ matrix.ort_runtime }}
-          ORT_NUPKG_SHA256: 782564d3d68e87269ea1812cc94710ad06fe014faf093f01a6f89d0bd58719d3
-        run: |
-          package="$RUNNER_TEMP/microsoft.ml.onnxruntime.${ORT_VERSION}.nupkg"
-          curl --fail --location --retry 3 \
-            "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/${ORT_VERSION}/microsoft.ml.onnxruntime.${ORT_VERSION}.nupkg" \
-            --output "$package"
-          echo "${ORT_NUPKG_SHA256}  ${package}" | sha256sum --check
-          unzip -j "$package" \
-            "runtimes/${ORT_RUNTIME}/native/libonnxruntime.so" \
-            "runtimes/${ORT_RUNTIME}/native/libonnxruntime_providers_shared.so" \
-            LICENSE \
-            ThirdPartyNotices.txt \
-            -d python/soccernetpy
+      - name: Test runtime bundling helper
+        if: matrix.target == 'x86_64'
+        run: python -m unittest discover -s tests -v
+      - name: Bundle Microsoft ONNX Runtime from NuGet
+        run: python scripts/fetch_onnxruntime.py --runtime "${{ matrix.ort_runtime }}"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -59,16 +49,34 @@ jobs:
           wheel="$(find dist -name '*.whl' -print -quit)"
           unzip -l "$wheel" | grep 'soccernetpy/libonnxruntime.so'
           unzip -l "$wheel" | grep 'soccernetpy/libonnxruntime_providers_shared.so'
-      - name: Test import on glibc 2.28
-        if: matrix.target == 'x86_64'
+      - name: Test inference on glibc 2.28
         run: |
-          docker run --rm \
+          docker run --rm -i \
             --volume "$PWD/dist:/dist:ro" \
-            quay.io/pypa/manylinux_2_28_x86_64:latest \
-            bash -c "
-              /opt/python/cp39-cp39/bin/python -m pip install /dist/*cp39*.whl
-              /opt/python/cp39-cp39/bin/python -c 'import ctypes, os; from soccernetpy import soccernet; ctypes.CDLL(os.environ[\"ORT_DYLIB_PATH\"]); print(\"soccernetpy and Microsoft ONNX Runtime loaded successfully\")'
-            "
+            quay.io/pypa/manylinux_2_28_${{ matrix.target }}:latest \
+            bash -se <<'SH'
+          /opt/python/cp39-cp39/bin/python -m pip install \
+            --no-index --find-links /dist --only-binary=:all: soccernetpy
+          /opt/python/cp39-cp39/bin/python - <<'PY'
+          import ctypes
+          import os
+          from pathlib import Path
+          from soccernetpy import soccernet
+
+          runtime = Path(os.environ["ORT_DYLIB_PATH"])
+          assert runtime.name == "libonnxruntime.so"
+          assert runtime.is_file()
+          assert runtime.with_name("libonnxruntime_providers_shared.so").is_file()
+          ctypes.CDLL(str(runtime))
+          result = soccernet(
+              job_titles=["soccer player"],
+              job_tasks=["play soccer"],
+              n=1,
+          )
+          assert result[0][0].code == "27-2021", result
+          print(result[0][0])
+          PY
+          SH
       - name: Upload wheels
         uses: actions/upload-artifact@v6
         with:
@@ -84,21 +92,48 @@ jobs:
           - runner: windows-latest
             target: x64
             python_arch: x64
+            ort_runtime: win-x64
           - runner: windows-11-arm
             target: aarch64
             python_arch: arm64
+            ort_runtime: win-arm64
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           architecture: ${{ matrix.python_arch }}
+      - name: Bundle Microsoft ONNX Runtime from NuGet
+        run: python scripts/fetch_onnxruntime.py --runtime "${{ matrix.ort_runtime }}"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+      - name: Test bundled Windows ONNX Runtime
+        shell: bash
+        run: |
+          python -m pip install --no-index --find-links dist --only-binary=:all: soccernetpy
+          python - <<'PYTHON'
+          import ctypes
+          import os
+          from pathlib import Path
+          from soccernetpy import soccernet
+
+          dll = Path(os.environ["ORT_DYLIB_PATH"])
+          assert dll.name == "onnxruntime.dll"
+          assert dll.is_file()
+          assert dll.with_name("onnxruntime_providers_shared.dll").is_file()
+          ctypes.CDLL(str(dll))
+          result = soccernet(
+              job_titles=["soccer player"],
+              job_tasks=["play soccer"],
+              n=1,
+          )
+          assert result[0][0].code == "27-2021", result
+          print(result[0][0])
+          PYTHON
       - name: Upload wheels
         uses: actions/upload-artifact@v6
         with:
@@ -113,7 +148,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-14
+          - runner: macos-15
             target: aarch64
             ort_runtime: system
           - runner: macos-15-intel
@@ -165,6 +200,25 @@ jobs:
           assert dylib.name == "libonnxruntime.1.24.2.dylib"
           assert dylib.is_file()
 
+          result = soccernet(
+              job_titles=["soccer player"],
+              job_tasks=["play soccer"],
+              n=1,
+          )
+          assert result[0][0].code == "27-2021", result
+          print(result[0][0])
+          PY
+      - name: Test Apple Silicon macOS wheel
+        if: matrix.target == 'aarch64'
+        run: |
+          test "$(uname -m)" = "arm64"
+          python -m pip install \
+            --no-index --find-links dist --only-binary=:all: soccernetpy
+          python - <<'PY'
+          import platform
+          from soccernetpy import soccernet
+
+          assert platform.machine() == "arm64", platform.machine()
           result = soccernet(
               job_titles=["soccer player"],
               job_tasks=["play soccer"],

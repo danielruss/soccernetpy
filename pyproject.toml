@@ -29,6 +29,8 @@ Repository = "https://github.com/danielruss/soccernetpy"
 python-source = "python"
 module-name = "soccernetpy.soccernetpy"
 include = [
+    { path = "soccernetpy/onnxruntime.dll", format = "wheel" },
+    { path = "soccernetpy/onnxruntime_providers_shared.dll", format = "wheel" },
     { path = "soccernetpy/libonnxruntime.so", format = "wheel" },
     { path = "soccernetpy/libonnxruntime_providers_shared.so", format = "wheel" },
     { path = "soccernetpy/libonnxruntime.1.24.2.dylib", format = "wheel" },

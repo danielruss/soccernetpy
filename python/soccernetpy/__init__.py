@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 _package_dir = Path(__file__).resolve().parent
-for _ort_name in ("libonnxruntime.so", "libonnxruntime.1.24.2.dylib"):
+for _ort_name in ("onnxruntime.dll", "libonnxruntime.so", "libonnxruntime.1.24.2.dylib"):
     _bundled_ort = _package_dir / _ort_name
     if _bundled_ort.is_file():
         os.environ.setdefault("ORT_DYLIB_PATH", str(_bundled_ort))
