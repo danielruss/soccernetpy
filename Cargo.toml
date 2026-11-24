@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = "0.29.0"
-soccer-rs = "0.2.0"
+soccer-rs = "0.3"
 
 [target.'cfg(all(target_os = "macos", target_arch = "x86_64"))'.dependencies.ort]
 # Microsoft no longer publishes Intel macOS binaries. CI bundles a custom
